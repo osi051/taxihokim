@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="tg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#145c2e">
+<title>Маркази савдои Ҳоким · Таксиҳо</title>
+<style>
+:root{--bg:#eef6ef;--card:#fff;--tx:#14261a;--mut:#5d7263;--ac:#1b7a3d;--bd:#d3e3d6;--ok:#1b7a3d;--er:#c62828;--hd:#145c2e}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1a13;--card:#18271d;--tx:#e8f3ea;--mut:#9bb5a1;--ac:#4caf70;--bd:#2c4233;--ok:#66bb6a;--er:#ef7a7a;--hd:#0c3a1d}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{background:var(--hd);color:#fff;padding:16px;text-align:center}
+header b{display:block;font-size:20px}header span{font-size:14px;opacity:.85}
+main{max-width:560px;margin:0 auto;padding:16px}
+h2{font-size:18px;margin:0 0 10px}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:14px}
+input,select{width:100%;padding:12px;margin:5px 0 10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font-size:16px}
+button{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:12px 18px;font-size:16px;font-weight:600;width:100%;margin-bottom:8px}
+button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
+label{font-size:14px;color:var(--mut)}
+.big{font-size:44px;font-weight:700;color:var(--ac);line-height:1}
+.m{color:var(--mut);font-size:14px}.ok{color:var(--ok)}.er{color:var(--er)}
+.row{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--bd)}
+.row:last-child{border:0}.row.me{background:rgba(76,175,112,.15);border-radius:8px;padding-left:6px;padding-right:6px}
+.two{display:flex;gap:8px}.two>*{flex:1}
+.pz{border:2px solid var(--ac);border-radius:14px;padding:12px;margin-bottom:14px;background:var(--card);text-align:center}
+.pz img,.bn{max-width:100%;border-radius:12px;display:block;margin:8px auto}.pz img{max-height:220px}
+#codes{height:150px;font-family:monospace;letter-spacing:1px}
+</style>
+</head>
+<body>
+<header><b>Маркази савдои Ҳоким</b><span>Таксиҳо · Ҷоизаи беҳтаринҳо</span></header>
+<main><div id="app" class="m">Бор мешавад...</div></main>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {initializeFirestore,persistentLocalCache,doc,setDoc,updateDoc,addDoc,getDoc,collection,query,where,onSnapshot} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+// Танзимоти Firebase (taxihokim)
+const cfg={apiKey:"AIzaSyDklSo-owA5eKE8nUUEkkAKZaTQkjYfrbw",authDomain:"taxihokim.firebaseapp.com",projectId:"taxihokim",appId:"1:48889040578:web:e3c0bf6b0d93609adbf55b"};
+const ADMIN="admin@taxi.tj";
+
+const fb=initializeApp(cfg),auth=getAuth(fb),db=initializeFirestore(fb,{localCache:persistentLocalCache()});
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+const $=s=>document.querySelector(s),app=$("#app"),med=["🥇","🥈","🥉"],DAY=864e5;
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ds=d=>new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const fmt=s=>s.split("-").reverse().join(".");
+const mail=p=>(p.trim().toLowerCase()==="admin"?"admin":p.replace(/\D/g,""))+"@taxi.tj";
+let S={per:{from:ds(new Date()),to:ds(new Date(Date.now()+29*DAY))},banner:"",prizes:[],drv:{},red:[],me:null,admin:false,uid:null};
+let subs=[],view="cab",sec="main",menu=false,mode="in";
+const unsub=()=>{subs.forEach(f=>f());subs=[]};
+
+onAuthStateChanged(auth,async u=>{
+  unsub();
+  if(!u){S.uid=null;return authUI()}
+  S.uid=u.uid;S.admin=u.email===ADMIN;view=S.admin?"adm":"cab";
+  try{const m=await getDoc(doc(db,"drivers",u.uid));S.me=m.exists()?m.data():null}catch(e){}
+  watch();shell();
+});
+function watch(){
+  subs.push(onSnapshot(doc(db,"settings","period"),s=>{if(s.exists())S.per=s.data();paint()}));
+  subs.push(onSnapshot(doc(db,"settings","banner"),s=>{S.banner=s.exists()?s.data().img:"";top()}));
+  subs.push(onSnapshot(doc(db,"settings","prizes"),s=>{S.prizes=s.exists()?s.data().list||[]:[];top()}));
+  subs.push(onSnapshot(collection(db,"drivers"),s=>{S.drv={};s.forEach(d=>S.drv[d.id]=d.data());paint()}));
+  const a=new Date(S.per.from+"T00:00:00").getTime(),b=new Date(S.per.to+"T23:59:59").getTime();
+  subs.push(onSnapshot(query(collection(db,"redeems"),where("ts",">=",a),where("ts","<=",b)),s=>{S.red=s.docs.map(d=>d.data());paint()}));
+}
+// ---- Ворид / сабти ном
+function authUI(){
+  app.innerHTML=`<div class="two" style="margin-bottom:14px"><button class="${mode=="in"?"":"s"}" id="t1">Ворид</button><button class="${mode=="up"?"":"s"}" id="t2">Сабти ном</button></div><div class="c">
+  ${mode=="up"?'<label>Номи шумо</label><input id="n"><label>Суроға</label><input id="a"><label>Рақами мошин</label><input id="pl"><label>Номи мошин</label><input id="car">':""}
+  <label>Рақами телефон</label><input id="p" type="tel"><label>Парол (на кам аз 6)</label><input id="pw" type="password">
+  <button id="go">${mode=="in"?"Ворид шудан":"Сабт кардан"}</button><p id="msg" class="er"></p></div>`;
+  $("#t1").onclick=()=>{mode="in";authUI()};$("#t2").onclick=()=>{mode="up";authUI()};
+  $("#go").onclick=async()=>{
+    const p=$("#p").value,pw=$("#pw").value,m=$("#msg");
+    try{
+      if(mode=="in")await signInWithEmailAndPassword(auth,mail(p),pw);
+      else{
+        const d={name:$("#n").value.trim(),phone:p.trim(),address:$("#a").value.trim(),plate:$("#pl").value.trim(),car:$("#car").value.trim()};
+        if(mail(p)!==ADMIN&&Object.values(d).some(v=>!v)){m.textContent="Ҳамаи майдонҳоро пур кунед.";return}
+        const c=await createUserWithEmailAndPassword(auth,mail(p),pw);
+        if(mail(p)!==ADMIN)await setDoc(doc(db,"drivers",c.user.uid),d);
+      }
+    }catch(e){const c=e.code||"";m.textContent=c.includes("email-already")?"Ин рақам пештар сабт шудааст.":c.includes("weak")?"Парол кӯтоҳ аст.":c.includes("credential")||c.includes("user-not-found")||c.includes("password")?"Рақам ё парол нодуруст аст.":"Хатогӣ: "+c}
+  };
+}
+// ---- Асос
+function shell(){
+  app.innerHTML=`<div id="tabs"></div><div id="top"></div><div id="body"></div><button class="s" id="out" style="margin-top:20px">Баромадан</button>`;
+  $("#out").onclick=()=>signOut(auth);
+  if(S.admin)$("#tabs").innerHTML=`<div class="two" style="margin-bottom:14px"><button class="${view=="adm"?"":"s"}" id="v1">Админ</button></div>`;
+  top();view=="adm"?admin():cabinet();paint();
+}
+function top(){
+  const t=$("#top");if(!t)return;
+  const l=S.prizes.filter(p=>p.ts>Date.now()-DAY).sort((a,b)=>b.ts-a.ts);
+  t.innerHTML=l.map(p=>`<div class="pz"><div style="font-size:30px">🎉</div><h2>${esc(p.name)}</h2><div class="m">${esc(p.car)} · ${esc(p.plate)}</div><div style="font-size:18px;margin:6px 0"><b>🏆 ${esc(p.pname)}</b></div>${p.gift?`<div>🎁 ${esc(p.gift)}</div>`:""}${p.img?`<img src="${p.img}" alt="">`:""}<div class="m">Боқӣ: ${Math.max(1,Math.ceil((p.ts+DAY-Date.now())/36e5))} соат</div></div>`).join("")+(S.banner?`<img class="bn" src="${S.banner}" alt="">`:"");
+}
+function board(){
+  const cnt={};S.red.forEach(x=>cnt[x.uid]=(cnt[x.uid]||0)+1);
+  return{list:Object.entries(cnt).sort((a,b)=>b[1]-a[1]),total:S.red.length};
+}
+function cabinet(){
+  $("#body").innerHTML=`<div class="c" id="mi"></div>
+  <div class="c"><h2>Коди варақча</h2><input id="cd" maxlength="5" placeholder="ABCDE" style="text-transform:uppercase;letter-spacing:4px;font-size:22px;text-align:center"><button id="rd">Ворид кардан</button><p id="msg"></p></div>
+  <div class="c"><h2>🏆 Рӯйхати таксиҳо</h2><div id="lb" class="m"></div></div><div class="c"><h2>Кодҳои ман</h2><div id="hist" class="m"></div></div>`;
+  $("#rd").onclick=redeem;
+}
+function paint(){
+  if(!S.uid)return;
+  if(view=="cab"&&$("#lb")){
+    const B=board(),i=B.list.findIndex(e=>e[0]==S.uid),my=S.red.filter(x=>x.uid==S.uid).sort((a,b)=>b.ts-a.ts);
+    $("#mi").innerHTML=`<div class="m">${esc(S.me?.name)} · ${esc(S.me?.car)} · ${esc(S.me?.plate)}</div><div class="m" style="margin-top:10px">Холи шумо (${fmt(S.per.from)} — ${fmt(S.per.to)})</div><div class="big">${my.length}</div><div class="m">${i>=0?"Ҷойи шумо: "+(i+1)+" аз "+B.list.length:""}</div>`;
+    $("#lb").innerHTML=B.list.length?B.list.map((e,i)=>{const x=S.drv[e[0]]||{};return `<div class="row ${e[0]==S.uid?"me":""}"><span>${med[i]||(i+1)+"."} <b>${esc(x.name||"?")}</b> · ${esc(x.car)} ${esc(x.plate)}</span><b>${e[1]}</b></div>`}).join(""):"Ҳоло холе нест.";
+    $("#hist").innerHTML=my.length?my.map(x=>`<div class="row"><span>${esc(x.code)}</span><span>${new Date(x.ts).toLocaleDateString()}</span></div>`).join(""):"Ҳоло код нест.";
+  }
+  if(view=="adm"&&$("#bd")){
+    const B=board();
+    $("#bd").innerHTML=`<div style="margin-bottom:8px"><b>${fmt(S.per.from)} — ${fmt(S.per.to)}: ҳамагӣ ${B.total} хол · ${B.list.length} таксӣ</b></div>`+(B.list.length?B.list.map((e,i)=>{const x=S.drv[e[0]]||{};return `<div class="row"><span>${med[i]||(i+1)+"."} <b>${esc(x.name||"?")}</b><br>${esc(x.phone)} · ${esc(x.car)} ${esc(x.plate)}</span><b>${e[1]}</b></div>`}).join(""):"Ҳоло холе нест.")+`<p class="m">Ҳамаи таксиҳои сабтшуда: ${Object.keys(S.drv).length}</p>`;
+    const dv=$("#dv");if(dv&&dv.options.length!=Object.keys(S.drv).length)dv.innerHTML=Object.entries(S.drv).map(([k,v])=>`<option value="${k}">${esc(v.name)} · ${esc(v.plate)}</option>`).join("");
+  }
+}
+async function redeem(){
+  const code=$("#cd").value.trim().toUpperCase(),m=$("#msg");
+  if(!/^[A-Z]{5}$/.test(code)){m.className="er";m.textContent="Код бояд 5 ҳарфи англисӣ бошад.";return}
+  try{
+    const ref=doc(db,"codes",code),s=await getDoc(ref);
+    if(!s.exists()){m.className="er";m.textContent="Ин код нодуруст аст.";return}
+    if(s.data().used){m.className="er";m.textContent="Ин код пештар истифода шудааст.";return}
+    await updateDoc(ref,{used:true,by:S.uid,ts:Date.now()});
+    await addDoc(collection(db,"redeems"),{uid:S.uid,code,ts:Date.now()});
+    m.className="ok";m.textContent="Офарин! +1 хол.";$("#cd").value="";
+  }catch(e){m.className="er";m.textContent="Хатогӣ (интернет?): "+(e.code||e.message)}
+}
+// ---- Админ
+const SEC={per:"📅 Давраи ҳисоб",prz:"🏆 Премия додан",ban:"🖼 Акси аксия",cod:"🔑 Сохтани кодҳо"};
+function admin(){
+  $("#body").innerHTML=`<div id="mn"></div>
+  <div class="c sc" data-s="main"><h2>Натиҷа</h2><div id="bd" class="m"></div></div>
+  <div class="c sc" data-s="per"><h2>Давраи ҳисоб</h2><div class="two"><div><label>Аз</label><input id="f" type="date" value="${S.per.from}"></div><div><label>То</label><input id="t" type="date" value="${S.per.to}"></div></div>
+  <div class="two"><button class="s" data-q="7">7 рӯз</button><button class="s" data-q="15">15 рӯз</button><button class="s" data-q="30">30 рӯз</button></div><button id="sp">Нигоҳ доштан</button><p id="pm" class="m"></p></div>
+  <div class="c sc" data-s="prz"><h2>🏆 Премия додан</h2><label>Таксӣ</label><select id="dv"></select><label>Номи премия</label><input id="pn" placeholder="Масалан: Ҷойи 1"><label>Номи туҳфа</label><input id="gf" placeholder="Масалан: 50 кг орд"><label>Акси туҳфа</label><input id="gi" type="file" accept="image/*"><button id="gp">Додан (24 соат ба ҳама намоён)</button><p id="qm" class="m"></p></div>
+  <div class="c sc" data-s="ban"><h2>Акси аксия</h2><input id="im" type="file" accept="image/*"><button class="s" id="di">Аксро нест кардан</button><p id="bm" class="m"></p></div>
+  <div class="c sc" data-s="cod"><h2>Сохтани кодҳо</h2><label>Чанд код?</label><input id="num" type="number" value="50" min="1" max="300"><button id="gn">Сохтан</button><p id="gm" class="m"></p><textarea id="codes" style="width:100%;display:none" readonly></textarea></div>`;
+  document.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>{$("#f").value=ds(new Date());$("#t").value=ds(new Date(Date.now()+(b.dataset.q-1)*DAY))});
+  $("#sp").onclick=async()=>{const f=$("#f").value,t=$("#t").value;if(!f||!t||f>t){$("#pm").textContent="Санаҳоро дуруст интихоб кунед.";return}
+    try{await setDoc(doc(db,"settings","period"),{from:f,to:t});unsub();watch();$("#pm").textContent="Нигоҳ дошта шуд."}catch(e){$("#pm").textContent="Хатогӣ: "+e.code}};
+  $("#im").onchange=async e=>{if(!e.target.files[0])return;try{await setDoc(doc(db,"settings","banner"),{img:await shrink(e.target.files[0],800,.7)});$("#bm").textContent="Акс гузошта шуд."}catch(x){$("#bm").textContent="Хатогӣ: "+x.code}};
+  $("#di").onclick=()=>setDoc(doc(db,"settings","banner"),{img:""});
+  $("#gp").onclick=givePrize;$("#gn").onclick=gen;applySec();
+}
+function applySec(){
+  document.querySelectorAll(".sc").forEach(e=>e.style.display=(!menu&&e.dataset.s==sec)?"":"none");
+  const mn=$("#mn");if(!mn)return;
+  mn.innerHTML=menu?Object.entries(SEC).map(([k,v])=>`<button class="s" data-k="${k}">${v}</button>`).join("")+`<button data-k="main" style="margin-bottom:14px">← Бозгашт</button>`:`<button class="s" id="mb" style="margin-bottom:14px">☰ Меню${sec!="main"?" · "+SEC[sec]:""}</button>`;
+  mn.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{sec=b.dataset.k;menu=false;applySec()});
+  const mb=$("#mb");if(mb)mb.onclick=()=>{menu=true;applySec()};
+}
+const shrink=(f,max,q)=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const s=Math.min(1,max/Math.max(im.width,im.height)),w=Math.round(im.width*s),h=Math.round(im.height*s),c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(im,0,0,w,h);ok(c.toDataURL("image/jpeg",q))};im.onerror=no;im.src=r.result};r.readAsDataURL(f)});
+async function givePrize(){
+  const m=$("#qm"),id=$("#dv").value,pn=$("#pn").value.trim(),g=$("#gf").value.trim(),f=$("#gi").files[0];
+  if(!id||!pn){m.textContent="Таксӣ ва номи премияро интихоб кунед.";return}
+  try{const x=S.drv[id]||{},img=f?await shrink(f,500,.65):"";
+    const list=S.prizes.filter(p=>p.ts>Date.now()-DAY);list.push({ts:Date.now(),name:x.name||"",car:x.car||"",plate:x.plate||"",pname:pn,gift:g,img});
+    await setDoc(doc(db,"settings","prizes"),{list});m.textContent="Дода шуд ✓";sec="main";applySec()}catch(e){m.textContent="Хатогӣ: "+(e.code||e.message)}
+}
+async function gen(){
+  const n=Math.min(300,Math.max(1,+$("#num").value||0)),L="ABCDEFGHJKLMNPQRSTUVWXYZ",out=[];$("#gm").textContent="Сохта истодааст...";
+  try{while(out.length<n){let c="";for(let i=0;i<5;i++)c+=L[Math.floor(Math.random()*L.length)];
+    if((await getDoc(doc(db,"codes",c))).exists())continue;await setDoc(doc(db,"codes",c),{used:false,created:Date.now()});out.push(c)}
+    const t=$("#codes");t.style.display="block";t.value=out.join("\n");$("#gm").textContent=n+" код сохта шуд. Нусха бардоред ва чоп кунед."}
+  catch(e){$("#gm").textContent="Хатогӣ: "+(e.code||e.message)+" (сохта шуд: "+out.length+")"}
+}
+</script>
+</body>
+</html>
