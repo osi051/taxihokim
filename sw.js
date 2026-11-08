@@ -1,5 +1,5 @@
-const C="taxi-v1";
-self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(["./","index.html"])))});
+const C="taxi-v2";
+self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(["./","index.html","favicon-32.png","apple-touch-icon.png","icon-192.png","manifest.webmanifest"])))});
 self.addEventListener("activate",e=>e.waitUntil(clients.claim()));
 self.addEventListener("fetch",e=>{
   if(e.request.method!=="GET")return;
